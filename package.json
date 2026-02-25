@@ -1,11 +1,12 @@
 {
-  "name": "copy-of-lumina-color-grade",
+  "name": "snap-color",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "lint": "tsc --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {
