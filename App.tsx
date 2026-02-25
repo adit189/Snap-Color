@@ -5,6 +5,7 @@ import { parseCubeLut } from './utils/lutParser.ts';
 import { PhotoGrid } from './components/PhotoGrid.tsx';
 import { ControlPanel } from './components/ControlPanel.tsx';
 import { ProcessedThumbnail } from './components/ProcessedThumbnail.tsx';
+import { ExportModal } from './components/ExportModal.tsx';
 import { FolderOpen, Download, LayoutGrid, Maximize2, ChevronLeft, ChevronRight, Crop, Check, X, Undo2, Redo2, Sparkles, FlipHorizontal, Eye, Columns } from 'lucide-react';
 
 type HistoryItem = Record<string, EditSettings>;
@@ -21,6 +22,7 @@ export default function App() {
   const [isComparing, setIsComparing] = useState(false);
   const [compareSplit, setCompareSplit] = useState(0.5);
   const [activeMaskId, setActiveMaskId] = useState<string | null>(null);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -116,12 +118,15 @@ export default function App() {
     });
   }, [currentPhotoId, settingsMap, photos, selectedIds, pushHistory]);
 
-  const handleExportAll = useCallback(async () => {
+  const performExport = useCallback(async (packageName: string, customerName: string) => {
     if (photos.length === 0) return;
     setIsProcessing(true);
+    setIsExportModalOpen(false);
+    
     const photosToExport = selectedIds.size > 0 ? photos.filter(p => selectedIds.has(p.id)) : photos;
     
-    for (const photo of photosToExport) {
+    for (let i = 0; i < photosToExport.length; i++) {
+      const photo = photosToExport[i];
       const settings = settingsMap[photo.id] || DEFAULT_SETTINGS;
       const activeLut = settings.lutId ? luts.find(l => l.id === settings.lutId) || null : null;
       const img = new Image();
@@ -159,7 +164,15 @@ export default function App() {
       ctx.putImageData(processed, 0, 0);
       
       const link = document.createElement('a');
-      link.download = `Snap_${photo.name}`;
+      // Format: Snap Fun_[Package dropdown]_[Customer Name]
+      // If multiple files, append index to ensure uniqueness if needed, but user requested specific format.
+      // To be safe for multiple files, we'll append index if count > 1.
+      let filename = `Snap Fun_${packageName}_${customerName}`;
+      if (photosToExport.length > 1) {
+        filename += `_${i + 1}`;
+      }
+      
+      link.download = filename;
       link.href = exportCanvas.toDataURL('image/jpeg', 0.95);
       link.click();
     }
@@ -364,7 +377,7 @@ export default function App() {
       if (key === 'm') updateSetting('isMirrored', !currentSettings.isMirrored);
       if (key === 'b') setIsComparing(prev => !prev); // Before/After
       if (key === 's') syncSettings(true); // Sync All
-      if (key === 'e') handleExportAll(); // Export
+      if (key === 'e') setIsExportModalOpen(true); // Export
       if (key === 'enter' && isCropMode) confirmCrop();
       if (key === 'escape') isCropMode ? setIsCropMode(false) : setIsComparing(false);
     };
@@ -377,7 +390,7 @@ export default function App() {
         window.removeEventListener('keydown', handleKeyDown); 
         window.removeEventListener('keyup', handleKeyUp); 
     };
-  }, [isCropMode, cropRect, undo, redo, syncSettings, confirmCrop, toggleCropMode, isAltPressed, currentSettings, viewMode, photos, selectedIds, handleExportAll]);
+  }, [isCropMode, cropRect, undo, redo, syncSettings, confirmCrop, toggleCropMode, isAltPressed, currentSettings, viewMode, photos, selectedIds]);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -640,7 +653,7 @@ export default function App() {
             {isCropMode ? <Check size={20} /> : currentSettings.crop ? <X size={20} onClick={(e) => { if(currentSettings.crop) { e.stopPropagation(); updateSetting('crop', null); } }} /> : <Crop size={20} />}
           </button>
           
-          <button onClick={handleExportAll} disabled={isProcessing || photos.length === 0} title="Export (E)" className="px-5 py-2.5 bg-[#355faa] text-white hover:opacity-90 rounded-xl font-semibold text-xs uppercase tracking-widest shadow-lg shadow-blue-900/10 transition-all flex items-center gap-2">
+          <button onClick={() => setIsExportModalOpen(true)} disabled={isProcessing || photos.length === 0} title="Export (E)" className="px-5 py-2.5 bg-[#355faa] text-white hover:opacity-90 rounded-xl font-semibold text-xs uppercase tracking-widest shadow-lg shadow-blue-900/10 transition-all flex items-center gap-2">
             <Download size={14} /> Export
           </button>
         </div>
@@ -701,6 +714,13 @@ export default function App() {
           </div>
         )}
       </div>
+
+      <ExportModal 
+        isOpen={isExportModalOpen} 
+        onClose={() => setIsExportModalOpen(false)} 
+        onExport={performExport} 
+        count={selectedIds.size > 0 ? selectedIds.size : photos.length} 
+      />
     </div>
   );
 }
