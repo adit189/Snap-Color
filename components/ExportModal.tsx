@@ -34,7 +34,7 @@ export function ExportModal({ isOpen, onClose, onExport, count }: ExportModalPro
             >
               <option value="Self Photo">Self Photo</option>
               <option value="Photobox">Photobox</option>
-              <option value="Passport Photo">Passport Photo</option>
+              <option value="Pass Photo">Pass Photo</option>
             </select>
           </div>
 
